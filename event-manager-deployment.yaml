@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: event-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: event-manager
+  template:
+    metadata:
+      labels:
+        app: event-manager
+    spec:
+      serviceAccountName: ksa-cloud-sql
+      containers:
+      - name: event-manager
+        image: europe-west9-docker.pkg.dev/francescos-challenge/francescos-challenge-repo/event-manager:latest
+        ports:
+          - containerPort: 8080
+        env:
+          - name: LD_BIND_NOW
+            value: "1"
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: "/var/run/secret/cloud.google.com/francescos-challenge-b8ac230245d2.json"
+          - name: GCP_PROJECT_ID
+            value: "francescos-challenge"
+          - name: GCP_TOPIC_ID
+            value: "francescos-challenge-event"
+          - name: GCP_SUBSCRIPTION_ID
+            value: "challenge-subscription"
+          - name: PORT
+            value: "8080"
+          - name: DB_USER
+            valueFrom:
+              secretKeyRef:
+                name: gke-cloud-sql-secrets
+                key: username
+          - name: DB_PASS
+            valueFrom:
+              secretKeyRef:
+                name: gke-cloud-sql-secrets
+                key: password
+          - name: DB_NAME
+            valueFrom:
+              secretKeyRef:
+                name: gke-cloud-sql-secrets
+                key: database
+        volumeMounts:
+          - name: service-account
+            mountPath: /var/run/secret/cloud.google.com
+      - name: cloud-sql-proxy
+        image: gcr.io/cloudsql-docker/gce-proxy:latest
+        command:
+          - "/cloud_sql_proxy"
+          - "-instances=francescos-challenge:europe-west9:customers-db=tcp:5432"
+        securityContext:
+          # The default Cloud SQL proxy image runs as the
+          # "nonroot" user and group (uid: 65532) by default.
+          runAsNonRoot: true
+      volumes:
+      - name: service-account
+        secret:
+          secretName: pub-sub-sql-sa-key
+
+---
