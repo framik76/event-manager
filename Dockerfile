@@ -8,7 +8,8 @@ COPY src ./src/
 # Build a release artifact.
 RUN mvn package -DskipTests
 
-FROM openjdk:17-alpine
+#FROM openjdk:17-alpine
+FROM bellsoft/liberica-openjdk-alpine:17
 
 # Copy the jar to the production image from the builder stage.
 COPY --from=builder /app/target/event-manager-*.jar /event-manager.jar
